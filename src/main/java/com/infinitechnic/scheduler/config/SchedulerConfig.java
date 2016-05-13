@@ -1,7 +1,6 @@
 package com.infinitechnic.scheduler.config;
 
 import com.infinitechnic.scheduler.job.SampleJob;
-import com.infinitechnic.scheduler.spring.AutowiringSpringBeanJobFactory;
 import org.quartz.JobDetail;
 import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
@@ -12,7 +11,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.quartz.JobDetailFactoryBean;
-import org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 import org.springframework.scheduling.quartz.SimpleTriggerFactoryBean;
 
@@ -22,8 +20,25 @@ import java.io.IOException;
 public class SchedulerConfig {
 
     @Bean
-    public MethodInvokingJobDetailFactoryBean sampleJobDetail(@Qualifier("sampleJob") SampleJob sampleJob) {
-        return createJobDetail(sampleJob);
+    public JobFactory jobFactory(ApplicationContext applicationContext) {
+        AutowiringSpringBeanJobFactory jobFactory = new AutowiringSpringBeanJobFactory();
+        jobFactory.setApplicationContext(applicationContext);
+        return jobFactory;
+    }
+
+    @Bean
+    public SchedulerFactoryBean schedulerFactoryBean(JobFactory jobFactory, @Qualifier("sampleJobTrigger") Trigger sampleJobTrigger) throws IOException {
+        SchedulerFactoryBean factory = new SchedulerFactoryBean();
+        factory.setOverwriteExistingJobs(true);
+        factory.setJobFactory(jobFactory);
+        factory.setTriggers(sampleJobTrigger);
+
+        return factory;
+    }
+
+    @Bean
+    public JobDetailFactoryBean sampleJobDetail() {
+        return createJobDetail(SampleJob.class);
     }
 
     @Bean(name = "sampleJobTrigger")
@@ -31,19 +46,9 @@ public class SchedulerConfig {
         return createTrigger(jobDetail, frequency);
     }
 
-    @Bean
-    public SchedulerFactoryBean schedulerFactoryBean(@Qualifier("sampleJobDetail") JobDetail jobDetail, @Qualifier("sampleJobTrigger") Trigger sampleJobTrigger) throws IOException {
-        SchedulerFactoryBean factory = new SchedulerFactoryBean();
-        factory.setJobDetails(jobDetail);
-        factory.setTriggers(sampleJobTrigger);
-
-        return factory;
-    }
-
-    private static MethodInvokingJobDetailFactoryBean createJobDetail(SampleJob sampleJob) {
-        MethodInvokingJobDetailFactoryBean factoryBean = new MethodInvokingJobDetailFactoryBean();
-        factoryBean.setTargetObject(sampleJob);
-        factoryBean.setTargetMethod("execute");
+    private static JobDetailFactoryBean createJobDetail(Class<?> jobClass) {
+        JobDetailFactoryBean factoryBean = new JobDetailFactoryBean();
+        factoryBean.setJobClass(jobClass);
         return factoryBean;
     }
 
@@ -54,7 +59,7 @@ public class SchedulerConfig {
         factoryBean.setRepeatInterval(pollFrequencyMs);
         factoryBean.setRepeatCount(SimpleTrigger.REPEAT_INDEFINITELY);
         // in case of misfire, ignore all missed triggers and continue :
- //       factoryBean.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT);
+        factoryBean.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_RESCHEDULE_NEXT_WITH_REMAINING_COUNT);
         return factoryBean;
     }
 }

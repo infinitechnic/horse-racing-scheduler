@@ -1,19 +1,17 @@
 package com.infinitechnic.scheduler.job;
 
-import com.kaviddiss.bootquartz.service.SampleService;
+import com.infinitechnic.scheduler.service.SampleService;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/**
- * Created by david on 2015-01-20.
- */
 public class SampleJob implements Job {
     @Autowired
     private SampleService service;
 
     @Override
-    public void execute(JobExecutionContext jobExecutionContext) {
+    public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
         service.hello();
     }
 }
